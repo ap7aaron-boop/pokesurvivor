@@ -1,23 +1,23 @@
-# Android offline wrapper integration
+# PokéSurvivor Offline Android integration
 
-The game source supports a persistent, no-login offline profile when the bundled page is opened with the query parameter `offline=1`.
+The Android wrapper lives in `android-wrapper/`. It bundles the production web game, opens it on the dedicated appassets origin with `?offline=1`, and enables DOM storage so the offline profile can persist across launches.
 
-## Required WebView setup
+## Storage and mode selection
 
-- Load the bundled page as `file:///android_asset/index.html?offline=1` (or the equivalent path used by your wrapper).
-- Enable DOM storage before loading the page: `webView.getSettings().setDomStorageEnabled(true)`.
-- Keep the app's WebView data when updating the APK. Clearing app storage or uninstalling the app can erase local progress.
-- Do not call `G.DB.playAsGuest()` for the offline profile. Guest sessions are intentionally in-memory only.
-- Keep the normal website URL free of `offline=1`; the parameter is intended for the offline Android build only.
+- The wrapper loads `https://appassets.androidplatform.net/assets/www/index.html?offline=1`.
+- `WebViewAssetLoader` serves the APK-bundled files on a stable HTTPS origin; the wrapper does not enable arbitrary file-URL access.
+- The game detects `offline=1` and skips Firebase initialization, even though the appassets origin uses HTTPS.
+- WebView DOM storage is enabled. The local profile is keyed by `__pokesurvivor_offline__`.
+- Do not call `G.DB.playAsGuest()` for this profile. Guest sessions are intentionally in-memory only.
 
-The game stores local profile metadata under `ps.accounts`, the active session under `ps.session`, and the persistent save under `ps.save.__pokesurvivor_offline__`.
+The game stores profile metadata under `ps.accounts`, the active session under `ps.session`, and the persistent save under `ps.save.__pokesurvivor_offline__`.
 
-## Verification checklist
+## Verify the APK on a device
 
-1. Install and launch the offline APK; the game should continue past login to the existing profile flow.
-2. Complete the personality test / choose a partner, then enter the menu.
-3. Earn coins or make another persistent progression change, exit the app, and relaunch.
-4. Confirm the chosen partner, coins, collection and upgrades remain.
-5. Repeat with airplane mode enabled.
+1. Install and launch the APK with airplane mode enabled.
+2. Complete the personality test and choose a partner.
+3. Make a persistent progression change (for example, spend/earn coins or change a setting saved by the game).
+4. Force-stop the app and launch it again.
+5. Confirm the selected partner, collection, coins and upgrades remain.
 
-This repository contains the web-game source. The separate Android wrapper project and signing/build configuration are not included here, so these instructions must also be applied to that wrapper before producing a new APK.
+Clearing app data or uninstalling the app can erase local progress. Test the release APK on a physical Android device before distributing it.
