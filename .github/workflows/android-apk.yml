@@ -75,21 +75,36 @@ jobs:
           yes | "$SDKMANAGER" --licenses >/dev/null || true
           "$SDKMANAGER" "platforms;android-35" "build-tools;35.0.0" "platform-tools"
 
-      - name: Prepare release signing key
+      - name: Prepare and validate release signing key
         if: env.HAS_RELEASE_SIGNING == 'true'
+        shell: bash
         env:
           ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
-          echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/pokesurvivor-release.jks"
-          echo "ANDROID_KEYSTORE_PATH=$RUNNER_TEMP/pokesurvivor-release.jks" >> "$GITHUB_ENV"
+          set -euo pipefail
+          # Remove accidental line breaks/spaces from secrets copied from text files.
+          printf '%s' "$ANDROID_KEYSTORE_BASE64" | tr -d '\r\n ' | base64 --decode > "$RUNNER_TEMP/pokesurvivor-release.jks"
+          STORE_PASSWORD="$(printf '%s' "$ANDROID_KEYSTORE_PASSWORD" | tr -d '\r\n')"
+          KEY_ALIAS="$(printf '%s' "$ANDROID_KEY_ALIAS" | tr -d '\r\n')"
+          KEY_PASSWORD="$(printf '%s' "$ANDROID_KEY_PASSWORD" | tr -d '\r\n')"
+          test -s "$RUNNER_TEMP/pokesurvivor-release.jks"
+          # Fail here with a clear message instead of later during APK packaging.
+          keytool -list -keystore "$RUNNER_TEMP/pokesurvivor-release.jks" -storepass "$STORE_PASSWORD" -alias "$KEY_ALIAS" >/dev/null
+          keytool -keypasswd -keystore "$RUNNER_TEMP/pokesurvivor-release.jks" -storepass "$STORE_PASSWORD" -alias "$KEY_ALIAS" -keypass "$KEY_PASSWORD" -new "$KEY_PASSWORD" >/dev/null
+          {
+            echo "ANDROID_KEYSTORE_PATH=$RUNNER_TEMP/pokesurvivor-release.jks"
+            echo "ANDROID_KEYSTORE_PASSWORD=$STORE_PASSWORD"
+            echo "ANDROID_KEY_ALIAS=$KEY_ALIAS"
+            echo "ANDROID_KEY_PASSWORD=$KEY_PASSWORD"
+          } >> "$GITHUB_ENV"
+          echo "Release signing keystore, alias, and passwords validated."
 
       - name: Build signed release APK
         if: env.HAS_RELEASE_SIGNING == 'true'
         working-directory: android-wrapper
-        env:
-          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
-          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: gradle --no-daemon assembleRelease
 
       - name: Build debug APK
