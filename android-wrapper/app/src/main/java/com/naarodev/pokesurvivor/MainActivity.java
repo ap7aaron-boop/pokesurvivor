@@ -14,6 +14,7 @@ import androidx.webkit.WebViewAssetLoader;
 public final class MainActivity extends Activity {
     private WebView webView;
     private WebViewAssetLoader assetLoader;
+    private boolean exitDialogShowing;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -71,20 +72,28 @@ public final class MainActivity extends Activity {
             super.onBackPressed();
             return;
         }
+        // The previous handler swallowed Back on level-up screens and resumed
+        // a paused run on a second Back press. Pause active gameplay once; for
+        // all other states, let the player explicitly confirm exiting.
         webView.evaluateJavascript(
-            "(function(){if(window.G&&G.Game&&G.Game.state!=='ui'&&G.Game.state!=='over'){G.Game.togglePause();return 'paused';}return 'menu';})()",
+            "(function(){if(!window.G||!G.Game)return 'confirm-exit';" +
+            "if(G.Game.state==='playing'){G.Game.togglePause();return 'paused';}" +
+            "return 'confirm-exit';})()",
             result -> {
-                if ("\"menu\"".equals(result)) showExitDialog();
+                if ("\"confirm-exit\"".equals(result)) showExitDialog();
             }
         );
     }
 
     private void showExitDialog() {
+        if (exitDialogShowing || isFinishing()) return;
+        exitDialogShowing = true;
         new AlertDialog.Builder(this)
             .setTitle("Exit PokéSurvivor?")
-            .setMessage("Your saved progress will remain on this device.")
+            .setMessage("Saved progress will remain on this device. An unfinished run may be lost.")
             .setNegativeButton("Stay", (dialog, which) -> dialog.dismiss())
             .setPositiveButton("Exit", (dialog, which) -> finish())
+            .setOnDismissListener(dialog -> exitDialogShowing = false)
             .show();
     }
 
