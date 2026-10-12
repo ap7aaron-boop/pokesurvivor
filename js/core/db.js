@@ -230,13 +230,42 @@ G.DB = (() => {
     return { ok: true, isNew: !save.partner };
   }
 
+  /**
+   * En el APK offline se usa una cuenta local persistente, sin pedir registro.
+   * Activación deliberada desde el WebView: index.html?offline=1
+   * No cambia el flujo normal del navegador ni las cuentas existentes.
+   */
+  function offlineBuild() {
+    try { return new URLSearchParams(location.search).get('offline') === '1'; }
+    catch (_) { return false; }
+  }
+
   function restoreLocal() {
-    const k = read(K_SES);
-    if (!k) return false;
     const accs = read(K_ACC) || {};
-    if (!accs[k]) { remove(K_SES); return false; }
-    beginLocal(k, accs[k].name);
-    return true;
+    const k = read(K_SES);
+    if (k && accs[k]) {
+      beginLocal(k, accs[k].name);
+      return true;
+    }
+    if (k) remove(K_SES);
+
+    // Sin sesión previa, el modo APK crea/recupera una única cuenta local.
+    // guest=false + una clave estable permiten que commit() guarde el progreso.
+    if (offlineBuild()) {
+      const offlineKey = '__pokesurvivor_offline__';
+      if (!accs[offlineKey]) {
+        accs[offlineKey] = {
+          name: 'Entrenador',
+          salt: '',
+          hash: '',
+          created: Date.now()
+        };
+        write(K_ACC, accs);
+      }
+      beginLocal(offlineKey, accs[offlineKey].name || 'Entrenador');
+      return true;
+    }
+    return false;
   }
 
   /** Partida de una cuenta local antigua, si el nombre y la contraseña coinciden. */
