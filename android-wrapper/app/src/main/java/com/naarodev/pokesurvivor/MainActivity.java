@@ -1,35 +1,37 @@
 package com.naarodev.pokesurvivor;
 
-import android.annotation.SuppressLint;
+import android.app.Activity;
 import android.app.AlertDialog;
 import android.os.Bundle;
-import android.view.View;
 import android.webkit.WebChromeClient;
 import android.webkit.WebResourceRequest;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 
-import androidx.activity.OnBackPressedCallback;
-import androidx.appcompat.app.AppCompatActivity;
+import androidx.webkit.WebViewAssetLoader;
 
-public final class MainActivity extends AppCompatActivity {
+public final class MainActivity extends Activity {
     private WebView webView;
+    private WebViewAssetLoader assetLoader;
 
-    @SuppressLint("SetJavaScriptEnabled")
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
+        assetLoader = new WebViewAssetLoader.Builder()
+            .addPathHandler("/assets/", new WebViewAssetLoader.AssetsPathHandler(this))
+            .build();
+
         webView = new WebView(this);
         webView.setBackgroundColor(0xFF11121B);
-        webView.setOverScrollMode(View.OVER_SCROLL_NEVER);
+        webView.setOverScrollMode(WebView.OVER_SCROLL_NEVER);
 
         WebSettings settings = webView.getSettings();
         settings.setJavaScriptEnabled(true);
         settings.setDomStorageEnabled(true);
         settings.setDatabaseEnabled(true);
-        settings.setAllowFileAccess(true);
+        settings.setAllowFileAccess(false);
         settings.setAllowContentAccess(false);
         settings.setSupportZoom(false);
         settings.setBuiltInZoomControls(false);
@@ -38,17 +40,19 @@ public final class MainActivity extends AppCompatActivity {
         settings.setJavaScriptCanOpenWindowsAutomatically(false);
         settings.setSupportMultipleWindows(false);
         settings.setMixedContentMode(WebSettings.MIXED_CONTENT_NEVER_ALLOW);
-        settings.setAllowFileAccessFromFileURLs(false);
-        settings.setAllowUniversalAccessFromFileURLs(false);
 
         webView.setWebChromeClient(new WebChromeClient());
         webView.setWebViewClient(new WebViewClient() {
             @Override
+            public android.webkit.WebResourceResponse shouldInterceptRequest(
+                    WebView view, WebResourceRequest request) {
+                return assetLoader.shouldInterceptRequest(request.getUrl());
+            }
+
+            @Override
             public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
-                String url = request.getUrl().toString();
-                if (url.startsWith("file:///android_asset/www/")) return false;
-                // The game is offline-first. Do not navigate away from the bundled game.
-                return true;
+                // Only the bundled appassets origin is allowed inside the WebView.
+                return !"appassets.androidplatform.net".equals(request.getUrl().getHost());
             }
         });
 
@@ -56,20 +60,23 @@ public final class MainActivity extends AppCompatActivity {
         if (savedInstanceState != null) {
             webView.restoreState(savedInstanceState);
         } else {
-            webView.loadUrl("file:///android_asset/www/index.html?offline=1");
+            webView.loadUrl("https://appassets.androidplatform.net/assets/www/index.html?offline=1");
         }
+    }
 
-        getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
-            @Override
-            public void handleOnBackPressed() {
-                webView.evaluateJavascript(
-                    "(function(){if(window.G&&G.Game&&G.Game.state!=='ui'&&G.Game.state!=='over'){G.Game.togglePause();return 'paused';}return 'menu';})()",
-                    result -> {
-                        if ("\"menu\"".equals(result)) showExitDialog();
-                    }
-                );
+    @Override
+    @SuppressWarnings("deprecation")
+    public void onBackPressed() {
+        if (webView == null) {
+            super.onBackPressed();
+            return;
+        }
+        webView.evaluateJavascript(
+            "(function(){if(window.G&&G.Game&&G.Game.state!=='ui'&&G.Game.state!=='over'){G.Game.togglePause();return 'paused';}return 'menu';})()",
+            result -> {
+                if ("\"menu\"".equals(result)) showExitDialog();
             }
-        });
+        );
     }
 
     private void showExitDialog() {
@@ -85,6 +92,18 @@ public final class MainActivity extends AppCompatActivity {
     protected void onSaveInstanceState(Bundle outState) {
         if (webView != null) webView.saveState(outState);
         super.onSaveInstanceState(outState);
+    }
+
+    @Override
+    protected void onPause() {
+        if (webView != null) webView.onPause();
+        super.onPause();
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        if (webView != null) webView.onResume();
     }
 
     @Override
