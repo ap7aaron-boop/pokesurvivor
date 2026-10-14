@@ -98,7 +98,8 @@ jobs:
           test -s "$RUNNER_TEMP/pokesurvivor-release.jks"
           # Fail here with a clear message instead of later during APK packaging.
           keytool -list -keystore "$RUNNER_TEMP/pokesurvivor-release.jks" -storepass "$STORE_PASSWORD" -alias "$KEY_ALIAS" >/dev/null
-          keytool -keypasswd -keystore "$RUNNER_TEMP/pokesurvivor-release.jks" -storepass "$STORE_PASSWORD" -alias "$KEY_ALIAS" -keypass "$KEY_PASSWORD" -new "$KEY_PASSWORD" >/dev/null
+          # Exercise the private key with a temporary CSR; do not mutate the keystore just to validate it.
+          keytool -certreq -keystore "$RUNNER_TEMP/pokesurvivor-release.jks" -storepass "$STORE_PASSWORD" -alias "$KEY_ALIAS" -keypass "$KEY_PASSWORD" -file "$RUNNER_TEMP/pokesurvivor-signing-check.csr" >/dev/null
           {
             echo "ANDROID_KEYSTORE_PATH=$RUNNER_TEMP/pokesurvivor-release.jks"
             echo "ANDROID_KEYSTORE_PASSWORD=$STORE_PASSWORD"
