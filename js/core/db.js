@@ -230,13 +230,45 @@ G.DB = (() => {
     return { ok: true, isNew: !save.partner };
   }
 
+  /**
+   * En el APK offline se usa una cuenta local persistente, sin pedir registro.
+   * Activación deliberada desde el WebView: index.html?offline=1
+   * No cambia el flujo normal del navegador ni las cuentas existentes.
+   */
+  // Native Android WebView uses the stable appassets origin. No query flag or login is needed.
+  function deviceBuild() {
+    try {
+      return location.hostname === 'appassets.androidplatform.net' ||
+        new URLSearchParams(location.search).get('offline') === '1';
+    } catch (_) { return false; }
+  }
+
   function restoreLocal() {
-    const k = read(K_SES);
-    if (!k) return false;
     const accs = read(K_ACC) || {};
-    if (!accs[k]) { remove(K_SES); return false; }
-    beginLocal(k, accs[k].name);
-    return true;
+    const k = read(K_SES);
+    if (k && accs[k]) {
+      beginLocal(k, accs[k].name);
+      return true;
+    }
+    if (k) remove(K_SES);
+
+    // Sin sesión previa, el modo APK crea/recupera una única cuenta local.
+    // guest=false + una clave estable permiten que commit() guarde el progreso.
+    if (deviceBuild()) {
+      const offlineKey = '__pokesurvivor_offline__';
+      if (!accs[offlineKey]) {
+        accs[offlineKey] = {
+          name: 'Entrenador',
+          salt: '',
+          hash: '',
+          created: Date.now()
+        };
+        write(K_ACC, accs);
+      }
+      beginLocal(offlineKey, accs[offlineKey].name || 'Entrenador');
+      return true;
+    }
+    return false;
   }
 
   /** Partida de una cuenta local antigua, si el nombre y la contraseña coinciden. */
@@ -276,7 +308,7 @@ G.DB = (() => {
 
   async function initCloud() {
     const cfg = G.FIREBASE_CONFIG;
-    if (!/^https?:$/.test(location.protocol)) { localReason = 'file'; return false; }
+    if (deviceBuild() || !/^https?:$/.test(location.protocol)) { localReason = 'file'; return false; }
     if (!cfg || !cfg.apiKey || !cfg.projectId) { localReason = 'config'; return false; }
     await loadScript(SDK + 'firebase-app-compat.js');
     await loadScript(SDK + 'firebase-auth-compat.js');
@@ -455,7 +487,19 @@ G.DB = (() => {
     readyP = (async () => {
       try { if (await initCloud()) mode = 'cloud'; }
       catch (e) { console.warn('[DB] sin nube:', e.message); localReason = 'error'; mode = 'local'; }
-      if (mode === 'local') { setSync('local'); return restoreLocal(); }
+      if (mode === 'local') {
+        setSync('local');
+        const restored = restoreLocal();
+        if (deviceBuild()) {
+          // Persist any final in-memory changes when Android backgrounds or closes the WebView.
+          const saveOnExit = () => { if (save && !guest) commit(); };
+          addEventListener('pagehide', saveOnExit);
+          document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'hidden') saveOnExit();
+          });
+        }
+        return restored;
+      }
       const u = await new Promise(res => { const off = auth.onAuthStateChanged(x => { off(); res(x); }); });
       if (!u) return false;
       try { await openCloud(u); return true; }
@@ -631,6 +675,7 @@ G.DB = (() => {
     /** ¿La cuenta es de usuario y contraseña (no de Google)? */
     get nameAccount() { return nameAccount(); },
     get mode() { return mode; },
+    get standalone() { return deviceBuild(); },
     get localReason() { return localReason; },
     get syncState() { return syncState; },
     get user() { return user; },
