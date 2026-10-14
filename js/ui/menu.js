@@ -34,6 +34,7 @@ G.MenuUI = (() => {
 
   function open() {
     const s = G.DB.save;
+    $('btn-logout').classList.toggle('hidden', !!G.DB.standalone);
     const mon = G.DEX_BY[s.partner];
     const shiny = !!s.partnerShiny && G.DB.ownsShiny(mon.dex);
     G.UI.chrome(true);
