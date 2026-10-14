@@ -79,7 +79,9 @@ jobs:
           "$SDKMANAGER" "platforms;android-35" "build-tools;35.0.0" "platform-tools"
 
       - name: Prepare and validate release signing key
+        id: release_signing
         if: env.HAS_RELEASE_SIGNING == 'true'
+        continue-on-error: true
         shell: bash
         env:
           ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
@@ -106,12 +108,13 @@ jobs:
           echo "Release signing keystore, alias, and passwords validated."
 
       - name: Build signed release APK
-        if: env.HAS_RELEASE_SIGNING == 'true'
+        if: env.HAS_RELEASE_SIGNING == 'true' && steps.release_signing.outcome == 'success'
+        id: release_build
         working-directory: android-wrapper
         run: gradle --no-daemon assembleRelease
 
       - name: Build debug APK fallback
-        if: always() && (env.HAS_RELEASE_SIGNING != 'true' || failure())
+        if: always() && (env.HAS_RELEASE_SIGNING != 'true' || steps.release_signing.outcome != 'success' || failure())
         working-directory: android-wrapper
         run: gradle --no-daemon assembleDebug
 
