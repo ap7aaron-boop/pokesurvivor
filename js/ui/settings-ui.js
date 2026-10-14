@@ -12,6 +12,10 @@ G.SettingsUI = (() => {
 
   function init() {
     document.querySelectorAll('#set-tabs .gen-tab').forEach(b => { b.onclick = () => { tab = b.dataset.t; render(); }; });
+    if (G.DB.standalone) {
+      const accountTab = document.querySelector('#set-tabs [data-t="acc"]');
+      if (accountTab) accountTab.classList.add('hidden');
+    }
     $('set-close').onclick = close;
     $('btn-settings').innerHTML = G.Icons.html('gear', 20);
     $('btn-settings').onclick = () => open();
