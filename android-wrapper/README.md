@@ -55,7 +55,7 @@ On Linux/macOS, create the base64 value with `base64 -w 0 pokesurvivor-release.j
 
 ## Save behavior and limitations
 
-- Progress is stored in Android WebView local storage. Clearing app data or uninstalling the app may erase it.
+- Progress is stored in Android WebView local storage and committed at the game's save checkpoints and when the page is hidden/closed. Clearing app data or uninstalling the app may erase it. A force-killed unfinished run is not restored as an in-progress run.
 - This is an offline wrapper, not a Google Play billing or online multiplayer package.
 - The web game and its third-party assets retain their original licenses; review the repository's license and credits before redistribution.
 - Verify the APK on a real device: finish the starter test, change progression, force-stop, relaunch, and confirm the save remains.
