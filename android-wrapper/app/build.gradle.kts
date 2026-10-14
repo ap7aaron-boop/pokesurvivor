@@ -61,6 +61,12 @@ dependencies {
     implementation("androidx.webkit:webkit:1.12.1")
 }
 
+val syncLauncherIcon by tasks.registering(Sync::class) {
+    from(repoRoot.resolve("assets/icons/icon-512.png"))
+    into(layout.projectDirectory.dir("src/main/res/mipmap-nodpi"))
+    rename { "ic_launcher.png" }
+}
+
 val syncGameAssets by tasks.registering(Sync::class) {
     from(repoRoot) {
         include("index.html")
@@ -75,5 +81,5 @@ val syncGameAssets by tasks.registering(Sync::class) {
 }
 
 tasks.named("preBuild").configure {
-    dependsOn(syncGameAssets)
+    dependsOn(syncGameAssets, syncLauncherIcon)
 }
