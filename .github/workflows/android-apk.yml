@@ -50,7 +50,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          npx --yes rea-agents@latest analyze-javascript-application "$GITHUB_WORKSPACE" --json > "$RUNNER_TEMP/rea-analysis.json"
+          timeout 120s npx --yes rea-agents@latest analyze-javascript-application "$GITHUB_WORKSPACE/js" --json > "$RUNNER_TEMP/rea-analysis.json"
           test -s "$RUNNER_TEMP/rea-analysis.json"
           cp "$RUNNER_TEMP/rea-analysis.json" rea-analysis.json
 
