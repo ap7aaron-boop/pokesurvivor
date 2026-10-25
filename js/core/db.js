@@ -536,6 +536,11 @@ G.DB = (() => {
   const HOSTS = ['pokesurvivor.com', 'www.pokesurvivor.com', 'jpter78.github.io', 'localhost', '127.0.0.1'];
 
   async function initCloud() {
+    // Offline Android package skips all cloud SDK and backend initialization.
+    if (new URLSearchParams(location.search).get('offline') === '1') {
+      localReason = 'offline';
+      return false;
+    }
     const cfg = G.FIREBASE_CONFIG;
     if (!/^https?:$/.test(location.protocol)) { localReason = 'file'; return false; }
     if (cfg && !cfg.emulator && !HOSTS.includes(location.hostname)) { localReason = 'host'; return false; }

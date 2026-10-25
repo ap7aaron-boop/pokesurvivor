@@ -68,9 +68,10 @@ G.Game = (() => {
     resizeTs = [100, 350, 800].map(ms => setTimeout(resize, ms));
   }
 
-  /** Móvil en vertical: aviso de girarlo (y pausa). */
+  /** Browser portrait guard; the native APK opts out via ?portrait=1. */
   function checkOrientation() {
-    const portrait = G.Touch.active && innerHeight > innerWidth;
+    const nativePortrait = new URLSearchParams(location.search).get('portrait') === '1';
+    const portrait = G.Touch.active && innerHeight > innerWidth && !nativePortrait;
     const el = document.getElementById('rotate');
     if (!el) return;
     if (portrait && !document.getElementById('rotate-ico').innerHTML) document.getElementById('rotate-ico').innerHTML = G.Icons.html('phone', 48);
