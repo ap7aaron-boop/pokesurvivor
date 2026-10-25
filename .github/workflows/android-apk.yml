@@ -44,24 +44,6 @@ jobs:
         with:
           node-version: "22.23.4"
 
-      - name: Inspect game source with REA
-        id: rea_analysis
-        continue-on-error: true
-        shell: bash
-        run: |
-          set -euo pipefail
-          timeout 120s npx --yes rea-agents@latest analyze-javascript-application "$GITHUB_WORKSPACE/js" --json > "$RUNNER_TEMP/rea-analysis.json"
-          test -s "$RUNNER_TEMP/rea-analysis.json"
-          cp "$RUNNER_TEMP/rea-analysis.json" rea-analysis.json
-
-      - name: Upload REA analysis evidence
-        if: always() && hashFiles('rea-analysis.json') != ''
-        uses: actions/upload-artifact@v4
-        with:
-          name: pokesurvivor-rea-analysis-${{ github.run_number }}
-          path: rea-analysis.json
-          retention-days: 14
-
       - name: Validate JavaScript syntax
         shell: bash
         run: |
@@ -146,4 +128,22 @@ jobs:
           name: pokesurvivor-android-apks-${{ github.run_number }}
           path: android-wrapper/app/build/outputs/apk/**/*.apk
           if-no-files-found: error
+          retention-days: 14
+
+      - name: Inspect game source with REA
+        id: rea_analysis
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -euo pipefail
+          timeout 90s npx --yes rea-agents@latest analyze-javascript-application "$GITHUB_WORKSPACE/js" --json > "$RUNNER_TEMP/rea-analysis.json"
+          test -s "$RUNNER_TEMP/rea-analysis.json"
+          cp "$RUNNER_TEMP/rea-analysis.json" rea-analysis.json
+
+      - name: Upload REA analysis evidence
+        if: always() && hashFiles('rea-analysis.json') != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: pokesurvivor-rea-analysis-${{ github.run_number }}
+          path: rea-analysis.json
           retention-days: 14
